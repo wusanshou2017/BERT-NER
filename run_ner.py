@@ -154,6 +154,8 @@ class NerProcessor(DataProcessor):
             self._read_tsv(os.path.join(data_dir, "test.txt")), "test")
 
     def get_labels(self):
+        #中文标注的Label
+        # return ["O","B_time","I_time","E_time","B_dname","I_dname","E_dname","B_hname","I_hname","E_dname"]
         return ["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "[CLS]", "[SEP]"]
 
     def _create_examples(self,lines,set_type):
@@ -166,6 +168,41 @@ class NerProcessor(DataProcessor):
             examples.append(InputExample(guid=guid,text_a=text_a,text_b=text_b,label=label))
         return examples
 
+
+class NerChineseProcessor(DataProcessor):
+    """Processor for chinese data set."""
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "chinese_train.txt")), "train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "chinese_dev.txt")), "dev")
+
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "chinese_test.txt")), "test")
+
+    def get_labels(self):
+        #中文标注的Label
+        return ["O","B_time","I_time","E_time","B_dname","I_dname","E_dname","B_hname","I_hname","E_dname"]
+
+
+    def _create_examples(self,lines,set_type):
+        examples = []
+        for i,(sentence,label) in enumerate(lines):
+            guid = "%s-%s" % (set_type, i)
+            text_a = ' '.join(sentence)
+            text_b = None
+            label = label
+            examples.append(InputExample(guid=guid,text_a=text_a,text_b=text_b,label=label))
+        return examples
+
+##### todo 针对中文数据 进行修改
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""
 
@@ -262,15 +299,18 @@ def main():
                         type=str,
                         required=True,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
+
     parser.add_argument("--bert_model", default=None, type=str, required=True,
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
                         "bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, "
                         "bert-base-multilingual-cased, bert-base-chinese.")
+
     parser.add_argument("--task_name",
                         default=None,
                         type=str,
                         required=True,
                         help="The name of the task to train.")
+
     parser.add_argument("--output_dir",
                         default=None,
                         type=str,
@@ -301,7 +341,7 @@ def main():
                         action='store_true',
                         help="Set this flag if you are using an uncased model.")
     parser.add_argument("--train_batch_size",
-                        default=32,
+                        default=16,
                         type=int,
                         help="Total batch size for training.")
     parser.add_argument("--eval_batch_size",
@@ -364,7 +404,7 @@ def main():
         ptvsd.enable_attach(address=(args.server_ip, args.server_port), redirect_output=True)
         ptvsd.wait_for_attach()
 
-    processors = {"ner":NerProcessor}
+    processors = {"ner":NerProcessor,"chinese":NerChineseProcessor}
 
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
