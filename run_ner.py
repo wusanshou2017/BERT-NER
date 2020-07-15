@@ -89,6 +89,29 @@ class InputFeatures(object):
         self.valid_ids = valid_ids
         self.label_mask = label_mask
 
+def read_Chinese_file(filename):
+    f = open(filename)
+    data = []
+    sentence = []
+    label = []
+    for line in f:
+        if len(line) == 0 or line[0] == "\n" or line[0]=="\r\n":
+            if len(sentence) > 0:
+                data.append((sentence,label))
+                sentence = []
+                label = []
+            continue
+        splits = line.split('\t')
+        sentence.append(splits[0])
+        label.append(splits[1])
+
+    if len(sentence) > 0:
+        data.append((sentence, label))
+        sentence = []
+        label = []
+    return data
+
+
 def readfile(filename):
     '''
     read file
@@ -134,6 +157,9 @@ class DataProcessor(object):
         """Reads a tab separated value file."""
         return readfile(input_file)
 
+    @classmethod
+    def _read_chinese_tsv(cls,input_file):
+        return read_Chinese_file(input_file)
 
 class NerProcessor(DataProcessor):
     """Processor for the CoNLL-2003 data set."""
@@ -154,8 +180,7 @@ class NerProcessor(DataProcessor):
             self._read_tsv(os.path.join(data_dir, "test.txt")), "test")
 
     def get_labels(self):
-        #中文标注的Label
-        # return ["O","B_time","I_time","E_time","B_dname","I_dname","E_dname","B_hname","I_hname","E_dname"]
+
         return ["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "[CLS]", "[SEP]"]
 
     def _create_examples(self,lines,set_type):
@@ -175,21 +200,21 @@ class NerChineseProcessor(DataProcessor):
     def get_train_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "chinese_train.txt")), "train")
+            self._read_chinese_tsv(os.path.join(data_dir, "pro_ts.txt")), "train")
 
     def get_dev_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "chinese_dev.txt")), "dev")
+            self._read_chinese_tsv(os.path.join(data_dir, "pro_test.txt")), "dev")
 
     def get_test_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "chinese_test.txt")), "test")
+            self._read_chinese_tsv(os.path.join(data_dir, "pro_test.txt")), "test")
 
     def get_labels(self):
         #中文标注的Label
-        return ["O","B_time","I_time","E_time","B_dname","I_dname","E_dname","B_hname","I_hname","E_dname"]
+        return ["O","B_time","I_time","E_time","B_dname","I_dname","E_dname","B_hname","I_hname","E_hname","[CLS]", "[SEP]"]
 
 
     def _create_examples(self,lines,set_type):
@@ -202,7 +227,7 @@ class NerChineseProcessor(DataProcessor):
             examples.append(InputExample(guid=guid,text_a=text_a,text_b=text_b,label=label))
         return examples
 
-##### todo 针对中文数据 进行修改
+
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""
 
@@ -409,6 +434,7 @@ def main():
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
         n_gpu = torch.cuda.device_count()
+
     else:
         torch.cuda.set_device(args.local_rank)
         device = torch.device("cuda", args.local_rank)
